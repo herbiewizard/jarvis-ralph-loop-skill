@@ -36,10 +36,17 @@ Run Claude Code or Codex in a separate process (tmux or detached TTY) and persis
 
 ### Runner setup
 
-- Claude Code example:
-  - `export RALPH_RUNNER='claude -p "$(cat templates/PROMPT_build.md)"'`
+- Claude Code example (prefer Sonnet for long runs):
+  - `export RALPH_RUNNER='claude --model sonnet --dangerously-skip-permissions -p "$(cat templates/PROMPT_build.md)"'`
 - Codex example:
   - `export RALPH_RUNNER='codex exec "$(cat templates/PROMPT_build.md)"'`
+
+### Quota/limit policy (hard stop)
+
+- Treat provider usage-limit exhaustion as a hard stop by default.
+- `scripts/loop.sh` detects limit/quota messages and exits (status 75) when `RALPH_ON_LIMIT=stop` (default).
+- Supervisor should notify user immediately and schedule a restart after reset window.
+- In exceptional cases only, set `RALPH_ON_LIMIT=continue` to keep iterating.
 
 ### Process pattern
 

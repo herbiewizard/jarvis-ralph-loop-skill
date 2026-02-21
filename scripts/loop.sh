@@ -7,6 +7,10 @@ PROMPT_FILE="templates/PROMPT_${MODE}.md"
 SESSION="${RALPH_TMUX_SESSION:-ralph-loop}"
 USE_TMUX="${RALPH_USE_TMUX:-0}"
 PROGRESS_FILE="${RALPH_PROGRESS_FILE:-RALPH_PROGRESS.md}"
+# Hard-stop policy for provider quota exhaustion.
+# stop (default): exit loop immediately on quota/limit message.
+# continue: keep iterating even after quota messages.
+RALPH_ON_LIMIT="${RALPH_ON_LIMIT:-stop}"
 
 if [[ "$MODE" != "plan" && "$MODE" != "build" ]]; then
   echo "Usage: $0 [plan|build] [max_iterations]"
@@ -19,11 +23,16 @@ fi
 # Optional: set your coding CLI command here.
 # Examples:
 #   export RALPH_RUNNER='codex exec "$(cat templates/PROMPT_build.md)"'
-#   export RALPH_RUNNER='claude -p "$(cat templates/PROMPT_build.md)"'
+#   export RALPH_RUNNER='claude --model sonnet --dangerously-skip-permissions -p "$(cat templates/PROMPT_build.md)"'
 RUNNER="${RALPH_RUNNER:-}"
 
 log_progress() {
   printf -- "- [%s] %s\n" "$(date -u +'%Y-%m-%d %H:%M:%S UTC')" "$1" >> "$PROGRESS_FILE"
+}
+
+is_limit_exhaustion() {
+  local file="$1"
+  grep -Eqi "hit your limit|usage limit|rate limit|quota|resets [0-9]{1,2}(am|pm)|too many requests" "$file"
 }
 
 run_iteration_loop() {
@@ -38,10 +47,7 @@ run_iteration_loop() {
     echo "--- Ralph loop ($MODE) iteration $ITER ---"
     log_progress "Starting $MODE iteration $ITER"
 
-    if [[ -n "$RUNNER" ]]; then
-      eval "$RUNNER"
-      log_progress "Completed runner for $MODE iteration $ITER"
-    else
+    if [[ -z "$RUNNER" ]]; then
       echo "No RALPH_RUNNER configured. Showing prompt only:"
       echo "---------------------------------------------"
       cat "$PROMPT_FILE"
@@ -51,6 +57,32 @@ run_iteration_loop() {
       break
     fi
 
+    local run_log
+    run_log="$(mktemp)"
+
+    set +e
+    bash -lc "$RUNNER" 2>&1 | tee "$run_log"
+    local runner_status=${PIPESTATUS[0]}
+    set -e
+
+    if is_limit_exhaustion "$run_log"; then
+      log_progress "Runner hit usage/quota limit on iteration $ITER"
+      echo "Runner limit/quota exhaustion detected."
+      if [[ "$RALPH_ON_LIMIT" == "stop" ]]; then
+        log_progress "Hard stop on limit (RALPH_ON_LIMIT=stop). Notify user and resume after provider reset window."
+        rm -f "$run_log"
+        exit 75
+      fi
+    fi
+
+    rm -f "$run_log"
+
+    if [[ $runner_status -ne 0 ]]; then
+      log_progress "Runner failed on iteration $ITER with exit=$runner_status"
+      exit "$runner_status"
+    fi
+
+    log_progress "Completed runner for $MODE iteration $ITER"
     ITER=$((ITER+1))
   done
 }
