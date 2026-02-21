@@ -1,44 +1,52 @@
 ---
 name: jarvis-ralph-loop
-description: Execute Ralph-style iterative software delivery with clear phases: (1) requirements/specs, (2) planning-only gap analysis, and (3) build loops with one task per iteration, backpressure (tests/lint/typecheck), and commit checkpoints. Use when users ask for autonomous coding loops, implementation-plan driven execution, or PLANNING vs BUILDING mode orchestration across coding CLIs.
+description: Run Ralph-style autonomous software loops with clear phases: (1) requirements/specs, (2) planning-only gap analysis, and (3) build iterations with one-task scope, backpressure (tests/lint/typecheck/build), and commit checkpoints. Use for implementation-plan-driven coding workflows and PLANNING vs BUILDING orchestration across coding CLIs.
+metadata:
+  {
+    "openclaw":
+      {
+        "emoji": "🔁",
+        "requires": { "bins": ["git"] }
+      }
+  }
 ---
 
 # Jarvis Ralph Loop Skill
 
 Use this skill to run disciplined autonomous loops without losing control.
 
-## Core workflow
+## Workflow
 
-1. Requirements: write `specs/*.md` from JTBD/topics.
-2. Planning mode: generate/update `IMPLEMENTATION_PLAN.md` only.
-3. Building mode: implement one task per iteration, validate, commit.
+1. Create requirements in `specs/*.md`.
+2. Run **PLANNING** to generate/update `IMPLEMENTATION_PLAN.md` only.
+3. Run **BUILDING** to implement one task per iteration.
 
-## Required files
+## Required artifacts
 
 - `specs/*.md`
+- `IMPLEMENTATION_PLAN.md`
 - `templates/PROMPT_plan.md`
 - `templates/PROMPT_build.md`
 - `templates/AGENTS.md`
-- `IMPLEMENTATION_PLAN.md` (generated in planning)
 
-## Execution pattern (OpenClaw-friendly)
+## OpenClaw execution pattern
 
-For interactive coding CLIs, run with TTY:
+For interactive coding CLIs, use a TTY-backed run:
 - `exec(..., pty:true, background:true)`
-- monitor with `process poll/log`
+- monitor with `process poll` / `process log`
 
-Use one iteration per fresh context window. Persist state in files, not chat memory.
+Persist loop state in files (`specs`, plan, commits), not chat context.
 
-## Rules
+## Hard rules
 
-- Planning mode never implements code.
-- Building mode picks exactly one highest-priority task.
-- Always run backpressure commands from `AGENTS.md` before commit.
+- Planning mode: no code changes, no commits.
+- Building mode: one highest-priority task per iteration.
+- Run backpressure commands from `AGENTS.md` before commit.
 - Update `IMPLEMENTATION_PLAN.md` after each iteration.
 
 ## Safety
 
 - Prefer sandboxed execution.
-- Least-privilege credentials only.
-- No destructive actions (force-push/delete/mass rewrites) without explicit user approval.
-- Stop conditions: completion sentinel in plan, max iterations, or manual stop.
+- Use least-privilege credentials.
+- Require explicit approval for destructive operations (force-push, deletes, mass rewrites).
+- Stop on completion sentinel, max iterations, or manual stop.
