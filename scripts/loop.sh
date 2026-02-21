@@ -23,7 +23,7 @@ fi
 RUNNER="${RALPH_RUNNER:-}"
 
 log_progress() {
-  printf "- [%s] %s\n" "$(date -u +'%Y-%m-%d %H:%M:%S UTC')" "$1" >> "$PROGRESS_FILE"
+  printf -- "- [%s] %s\n" "$(date -u +'%Y-%m-%d %H:%M:%S UTC')" "$1" >> "$PROGRESS_FILE"
 }
 
 run_iteration_loop() {
